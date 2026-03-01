@@ -46,9 +46,6 @@ class MiniEagle(competition_2026_pb2_grpc.CompetitionToolServicer):
 
         predictions = []
 
-        second_voter = onnxruntime.InferenceSession('duration_eagle.onnx')
-        sv_input_name = second_voter.get_inputs()[0].name
-
         for sdc_test_case in request_iterator:
             sdc_test_case: competition_2026_pb2.SDCTestCase = sdc_test_case
 
@@ -56,20 +53,11 @@ class MiniEagle(competition_2026_pb2_grpc.CompetitionToolServicer):
 
             road = extract_road_features(set_road_array_length(road))
 
-            alpha = 0.0
-
             onnx_input = {onnx_input_name: np.expand_dims(road, axis=0)}
             onnx_output = ort_session.run(None, onnx_input)
             prediction = 1.0-np.squeeze(onnx_output)
 
-            sv_input = {sv_input_name: np.expand_dims(road, axis=0)}
-            sv_output = second_voter.run(None, sv_input)
-            sv_prediction = np.squeeze(sv_output)
-
-            # weighted_prediction = prediction * sv_prediction
-            weighted_prediction = prediction*(1.0-alpha)+sv_prediction*alpha
-
-            predictions.append((weighted_prediction, sdc_test_case.testId))
+            predictions.append((prediction, sdc_test_case.testId))
 
         predictions.sort(key=lambda x: x[0])
 
